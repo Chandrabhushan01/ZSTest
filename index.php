@@ -6,7 +6,7 @@ require_once realpath(dirname(__FILE__) . '/src/Google/autoload.php');
 
 $client_id = '555610710963-8b01jgrfg6gbvfapd1poe992t58a8fq2.apps.googleusercontent.com';
 $client_secret = 'WmIYft7KT4yy_povjPZaXFTS';
-$redirect_uri = 'http://127.0.0.1/gaphi/index.php';
+$redirect_uri = 'http://www.zscbg.96.lt/zstest/';
 $scope = 'https://www.googleapis.com/auth/gmail.readonly';
 
 $client = new Google_Client();
@@ -22,9 +22,9 @@ function multiexplode ($delimiters,$string) {
     $launch = explode($delimiters[0], $ready);
     return  $launch;
 }
-
 if (isset($_REQUEST['logout'])) {
-  unset($_SESSION['access_token']);
+    unset($_SESSION['access_token']);
+    header('Location: https://www.google.com/accounts/Logout?continue=https://appengine.google.com/_ah/logout?continue=http://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF']);
 }
 
 if (isset($_GET['code'])) {
@@ -271,11 +271,10 @@ $messagesResponse = $service->users_messages->listUsersMessages('me', $opt_param
 */
   echo <<<END
     
-
     <a class='logout' href='?logout'>Logout</a>
 END;
 }
 ?>
+ 
   </div>
-
 </div>
