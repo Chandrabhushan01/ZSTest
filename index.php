@@ -16,8 +16,8 @@ $client = new Google_Client();
 $client->setClientId($client_id);
 $client->setClientSecret($client_secret);
 $client->setRedirectUri($redirect_uri);
-$client->setAccessType('offline');
-$client->setApprovalPrompt('force');
+//$client->setAccessType('offline');
+//$client->setApprovalPrompt('force');
 $client->addScope($scope);
 //$client->setClassConfig('Google_IO_Curl', 'options',array(CURLOPT_CONNECTTIMEOUT => 60,CURLOPT_TIMEOUT => 60));
 
@@ -42,12 +42,7 @@ if (isset($_SESSION['access_token']) && $_SESSION['access_token']) {
 } else {
   $authUrl = $client->createAuthUrl();
 }
-if($client->isAccessTokenExpired()) {
 
-    $authUrl = $client->createAuthUrl();
-    header('Location: ' . filter_var($authUrl, FILTER_SANITIZE_URL));
-
-}
 if ($client->getAccessToken() && isset($_GET['url'])) {
   $url = new Google_Service_Urlshortener_Url();
   $url->longUrl = $_GET['url'];
@@ -64,6 +59,7 @@ if (strpos($client_id, "googleusercontent") == false) {
 <div class="box">
   <div class="request">
 <?php 
+//$messages = array();
 function multiexplode ($delimiters,$string) {
     $ready = str_replace($delimiters, $delimiters[0], $string);
     $launch = explode($delimiters[0], $ready);
@@ -83,8 +79,8 @@ function listMessages($service, $userId) {
       if ($pageToken) {
         $opt_param['pageToken'] = $pageToken;
       }
-      $messagesResponse = $service->users_messages->listUsersMessages('me',array('q'=>$str),$opt_param);
-      //$messagesResponse = $service->users_messages->listUsersMessages('me',$opt_param);
+	  //$messagesResponse = $service->users_messages->listUsersMessages('me',array('q'=>$str),$opt_param);
+      $messagesResponse = $service->users_messages->listUsersMessages('me',$opt_param);
       if ($messagesResponse->getMessages()) {
         $messages = array_merge($messages, $messagesResponse->getMessages());
         $pageToken = $messagesResponse->getNextPageToken();
@@ -107,7 +103,7 @@ if (isset($authUrl)) {
         $ar=[];
 		$cnt=0;
   
-  for($q=0;$q<$con;$q+=100)
+  for($q=0;$q<200;$q+=100)
    {
 	   $messageList=array();
        for($m=$q,$x=0;$m<($q+100),$x<100;$m++,$x++)
@@ -139,7 +135,7 @@ if (isset($authUrl)) {
 				if($headers[$qq]['name']=="From")
 				{
 					$from=$headers[$qq]['value']; 
-					$temp=multiexplode(array("<",">","\""),$from);
+					$temp=multiexplode(array("<",">","\"",","),$from);
 					foreach($temp as $te)
 					{
 						if(!(strpos($te,"@")===false))
@@ -156,7 +152,7 @@ if (isset($authUrl)) {
 				if($headers[$qq]['name']=="To")
 				{
 					$to=$headers[$qq]['value']; 
-					$temp=multiexplode(array("<",">","\""),$to);
+					$temp=multiexplode(array("<",">","\"",","),$to);
 					foreach($temp as $te)
 					{
 						if(!(strpos($te,"@")===false))
@@ -171,7 +167,7 @@ if (isset($authUrl)) {
 				if($headers[$qq]['name']=="Cc")
 				{
 					$cc=$headers[$qq]['value']; 
-					$temp=multiexplode(array("<",">","\""),$cc);
+					$temp=multiexplode(array("<",">","\"",","),$cc);
 					foreach($temp as $te)
 					{
 						//echo "BCC===>".$bcc.'<br/>';
@@ -190,7 +186,7 @@ if (isset($authUrl)) {
 				{
 					$bcc=$headers[$q]['value'];
 					//echo "BCC===>".$bcc.'<br/>';
-					$temp=multiexplode(array("<",">","\""),$bcc);
+					$temp=multiexplode(array("<",">","\"",","),$bcc);
 					foreach($temp as $te)
 					{
 						if(!(strpos($te,"@")===false))
