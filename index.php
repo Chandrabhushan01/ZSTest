@@ -1,30 +1,32 @@
 <?php
+
 include_once "templates/base.php";
 session_start();
 
-require_once realpath(dirname(__FILE__) . '/src/Google/autoload.php');
+require_once realpath(dirname(__FILE__) . '/../src/Google/autoload.php');
+//require_once 'Google/Client.php';
+//require_once 'Google/Service/Gmail.php'
 
-$client_id = '555610710963-8b01jgrfg6gbvfapd1poe992t58a8fq2.apps.googleusercontent.com';
-$client_secret = 'WmIYft7KT4yy_povjPZaXFTS';
-$redirect_uri = 'http://www.zscbg.96.lt/zstest/';
-$scope = 'https://www.googleapis.com/auth/gmail.readonly';
+ $client_id = '447034989084-2p3n3f104lmoljfsv41ra3inv014gave.apps.googleusercontent.com';
+ $client_secret = 'D9-xvhsqhKjEbW9J6rVBLOwZ';
+ $redirect_uri = 'http://localhost/gmaila/examples/new.php';
+ $scope = 'https://www.googleapis.com/auth/gmail.readonly';
 
 $client = new Google_Client();
 $client->setClientId($client_id);
 $client->setClientSecret($client_secret);
 $client->setRedirectUri($redirect_uri);
+$client->setAccessType('offline');
+$client->setApprovalPrompt('force');
 $client->addScope($scope);
+//$client->setClassConfig('Google_IO_Curl', 'options',array(CURLOPT_CONNECTTIMEOUT => 60,CURLOPT_TIMEOUT => 60));
 
 $service = new Google_Service_Gmail($client);
 
-function multiexplode ($delimiters,$string) {
-    $ready = str_replace($delimiters, $delimiters[0], $string);
-    $launch = explode($delimiters[0], $ready);
-    return  $launch;
-}
 if (isset($_REQUEST['logout'])) {
-    unset($_SESSION['access_token']);
-    header('Location: https://www.google.com/accounts/Logout?continue=https://appengine.google.com/_ah/logout?continue=http://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF']);
+  unset($_SESSION['access_token']);
+  
+header('Location: https://www.google.com/accounts/Logout?continue=https://appengine.google.com/_ah/logout?continue=http://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF']);
 }
 
 if (isset($_GET['code'])) {
@@ -34,12 +36,18 @@ if (isset($_GET['code'])) {
   header('Location: ' . filter_var($redirect, FILTER_SANITIZE_URL));
 }
 
+
 if (isset($_SESSION['access_token']) && $_SESSION['access_token']) {
   $client->setAccessToken($_SESSION['access_token']);
 } else {
   $authUrl = $client->createAuthUrl();
 }
+if($client->isAccessTokenExpired()) {
 
+    $authUrl = $client->createAuthUrl();
+    header('Location: ' . filter_var($authUrl, FILTER_SANITIZE_URL));
+
+}
 if ($client->getAccessToken() && isset($_GET['url'])) {
   $url = new Google_Service_Urlshortener_Url();
   $url->longUrl = $_GET['url'];
@@ -47,7 +55,7 @@ if ($client->getAccessToken() && isset($_GET['url'])) {
   $_SESSION['access_token'] = $client->getAccessToken();
 }
 
-echo pageHeader("GMail Analysis");
+echo pageHeader("GMAIL ANALYSIS");
 if (strpos($client_id, "googleusercontent") == false) {
   echo missingClientSecretsWarning();
   exit;
@@ -56,97 +64,88 @@ if (strpos($client_id, "googleusercontent") == false) {
 <div class="box">
   <div class="request">
 <?php 
-if (isset($authUrl)) {
-  echo "<a class='login' href='" . $authUrl . "'>Connect Me!</a>";
-} else {
-$service = new Google_Service_Gmail($client);
+function multiexplode ($delimiters,$string) {
+    $ready = str_replace($delimiters, $delimiters[0], $string);
+    $launch = explode($delimiters[0], $ready);
+    return  $launch;
+}
 
-$pageToken = NULL;
-  $messages = [];
-  $opt_param = [];
+function listMessages($service, $userId) {
+  $pageToken = NULL;
+  $messages = array();
+  $opt_param = array();
+  
+	  $date=date("Y-m-d");
+	$dt= date("Y-m-d",strtotime("-3 Months"));
+	$str="after:".$dt." before:".$date;
   do {
+    try {
       if ($pageToken) {
         $opt_param['pageToken'] = $pageToken;
       }
-            $optParams['labelIds'] = 'INBOX , SENT'; 
-          
-$messagesResponse = $service->users_messages->listUsersMessages('me', $opt_param);
+      $messagesResponse = $service->users_messages->listUsersMessages('me',array('q'=>$str),$opt_param);
+      //$messagesResponse = $service->users_messages->listUsersMessages('me',$opt_param);
       if ($messagesResponse->getMessages()) {
         $messages = array_merge($messages, $messagesResponse->getMessages());
+        $pageToken = $messagesResponse->getNextPageToken();
+      }
+    } catch (Exception $e) {
+      print 'An error occurred: ' . $e->getMessage();
+    }
+  } while ($pageToken);
+  return $messages;
 }
 
-	$ms=end($messages);
-
-		$mId=$ms->getId();
-
-                $optParamsGet = [];
-                $optParamsGet['format'] = 'full'; 
-                $message = $service->users_messages->get('me',$mId,$optParamsGet);
-                $headers = $message->getPayload()->getHeaders();
-
-	               
-	for($q=0;$q<25;$q++)
-	{
-		if(isset($headers[$q]))
-		{
-			if($headers[$q]['name']=="Date")
-			$date=$headers[$q]['value']; 
-		}
-
-	} 
-	
-	$strtotime = strtotime($date);
-	$date=date("Y-m-d", $strtotime);
-	$dt= date("Y-m-d",strtotime("-3 Months"));
-	
-	if($date > $dt)
-	        $pageToken = $messagesResponse->getNextPageToken();
-     	else
-		$pageToken = NULL;
-    
-  } while ($pageToken);
-	$cnt=0;
-	$ar=[];
-	
-	for($qq=0;$qq<15;$qq++)
-	{
-		$mId=$messages[$qq]->getId();
+if (isset($authUrl)) {
+  echo "<a class='login' href='" . $authUrl . "'>Connect Me!</a>";
+} else 
+{
+	$service = new Google_Service_Gmail($client);
+	$messages=listMessages($service,'me');
+   $con=count($messages);
+   //echo $con.'<br/>';
+        $ar=[];
+		$cnt=0;
+  
+  for($q=0;$q<$con;$q+=100)
+   {
+	   $messageList=array();
+       for($m=$q,$x=0;$m<($q+100),$x<100;$m++,$x++)
+	   {	
+           $messageList[$x]=$messages[$m];
+	   }
+	//$messages= $service->users_messages->listUsersMessages('me', array('labelIds'=>array("IMPORTANT"),'maxResults' => 100,'q'=>$str),$opt_param);
+	//$messageList = $messages->getMessages();
+	$client->setUseBatch(true);
+	$batch = new Google_Http_Batch($client);
+		foreach($messageList as $msg_obj)
+	   {
+	       //echo $msg_obj->id.'<br/>';
+			$request = $service->users_messages->get('me', $msg_obj->id,array('format' => 'metadata', 'metadataHeaders' => array('Date','To','From')));        
+			$batch->add($request, "mail-".$msg_obj->id);
+       }
+	   //var_dump($batch);
+        echo '<br/>';
+		$bMess = $batch->execute();
+		//var_dump($bMess);
 		
-                $optParamsGet = [];
-                $optParamsGet['format'] = 'full'; 
-                $message = $service->users_messages->get('me',$mId,$optParamsGet);
-                $headers = $message->getPayload()->getHeaders();
-
-	               
-		for($q=0;$q<25;$q++)
-		{
-			if(isset($headers[$q]))
+		foreach($bMess as $bmn)
+	    {	
+			$headers = $bmn->getPayload()->getHeaders();
+			$w=count($headers);
+			//print $w.'<br/>';
+			for($qq=0;$qq<$w;$qq++)
 			{
-				if($headers[$q]['name']=="To")
+				if($headers[$qq]['name']=="From")
 				{
-					$to=$headers[$q]['value']; 
-					$temp=multiexplode(array("<",">","\""),$to);
-					foreach($temp as $te)
-					{
-						if(!(strpos($te,"@")===false))
-						{
-							$te=strtolower($te);
-						//	if($te!="
-							$ar[$cnt]=$te;
-							$cnt++;
-						}
-					}
-				}
-				else
-				if($headers[$q]['name']=="From")
-				{
-					$from=$headers[$q]['value']; 
+					$from=$headers[$qq]['value']; 
 					$temp=multiexplode(array("<",">","\""),$from);
 					foreach($temp as $te)
 					{
 						if(!(strpos($te,"@")===false))
 						{
 							$te=strtolower($te);
+							//echo $te.'<br/>';
 							$ar[$cnt]=$te;
 							$cnt++;
 						
@@ -154,15 +153,32 @@ $messagesResponse = $service->users_messages->listUsersMessages('me', $opt_param
 					}
 				}
 				else
-				if($headers[$q]['name']=="Cc")
+				if($headers[$qq]['name']=="To")
 				{
-					$cc=$headers[$q]['value']; 
-					$temp=multiexplode(array("<",">","\""),$cc);
+					$to=$headers[$qq]['value']; 
+					$temp=multiexplode(array("<",">","\""),$to);
 					foreach($temp as $te)
 					{
 						if(!(strpos($te,"@")===false))
 						{
 							$te=strtolower($te);
+							//echo $te.'<br/>';
+							$ar[$cnt]=$te;
+							$cnt++;
+						}
+					}
+				}else
+				if($headers[$qq]['name']=="Cc")
+				{
+					$cc=$headers[$qq]['value']; 
+					$temp=multiexplode(array("<",">","\""),$cc);
+					foreach($temp as $te)
+					{
+						//echo "BCC===>".$bcc.'<br/>';
+						if(!(strpos($te,"@")===false))
+						{
+							$te=strtolower($te);
+							//echo $te.'<br/>';
 								$ar[$cnt]=$te;
 							$cnt++;
 						
@@ -170,111 +186,46 @@ $messagesResponse = $service->users_messages->listUsersMessages('me', $opt_param
 					}
 				}
 				else
-				if($headers[$q]['name']=="Bcc")
+				if($headers[$qq]['name']=="Bcc")
 				{
-					$bcc=$headers[$q]['value']; 
+					$bcc=$headers[$q]['value'];
+					//echo "BCC===>".$bcc.'<br/>';
 					$temp=multiexplode(array("<",">","\""),$bcc);
 					foreach($temp as $te)
 					{
 						if(!(strpos($te,"@")===false))
 						{
 							$te=strtolower($te);
+							//echo $te.'<br/>';
 								$ar[$cnt]=$te;
 							$cnt++;
 						
 						}
 					}
-				}
+				}		
 			}
-
-		} 
-	}
-	$pn=[];
-	$ct=0;
-	sort($ar);
-	$pn[$ct]=$ar[0];
-	$pv=[];
-	$pc[0]=0;	
-	for($q=0;$q<$cnt;$q++)
-	{
-		if(strcmp($ar[$q],$pn[$ct])!=0)
-		{
-			$ct++;
-			$pn[$ct]=$ar[$q];
-			$pc[$ct]=0;
 		}
-		if(strcmp($ar[$q],$pn[$ct])==0)
-			$pc[$ct]++;
+			
 	}
-	for($q=0;$q<=$ct;$q++)
-		for($qq=$q+1;$qq<=$ct;$qq++)
-		{
-			if($pc[$q]<$pc[$qq])
-			{
-				$cb=$pc[$q];
-				$pc[$q]=$pc[$qq];
-				$pc[$qq]=$cb;
-				$cb=$pn[$q];
-				$pn[$q]=$pn[$qq];
-				$pn[$qq]=$cb;
-			}	
-		}
-	print "Email: ".$pn[0]."<br/>";
+	//var_dump($ar);
+    $result=array_count_values($ar);
+	//print_r(array_count_values($ar));
+	//var_dump($result);
+	arsort($result);
+	$key=key($result);
+	
+	print "Email: ".$key."<br/>";
 	print "Start date: ".date("d-M-Y",strtotime("-3 Months"))."<br/>";
 	print "End date: ".date("d-M-Y")."<br/>";
-	print "Email:     #Conv.<br/>";
-	
-
-	for($q=1;$q<=$ct;$q++)
+	print "Email:         #Conv.<br/>";
+	unset($result[$key]);
+	foreach($result as $re=>$re_value)
 	{
-		print $pn[$q]." ".$pc[$q]."<br/>";	
+		echo $re."          ".$re_value.'<br/>';
 	}
-
-	  $client->setUseBatch(true);
-	  $batch = new Google_Http_Batch($client);
-	
-	  foreach ($messages as $message) {
-	  	$batch->add($service->users_messages->get('me', $message->id,['format'=>'metadata']),$message->id);
-//		print 'Message with ID: ' . $message->getId() . '<br/>';
-	  }
-	
-	//  $bMess=$batch->execute();
-      //    var_dump($bMess);
-	
-/*	foreach($bMess as $bmn)
-	  {
-
-		$messageId = $bmn->id;
-		$headers = $bmn->payload->headers;
-		for($q=0;$q<25;$q++)
-		{
-			if(isset($headers[$q]))
-			{
-				if($headers[$q]['name']=="From")
-				htmlentities($headers[$q]['value']); 
-		
-				if($headers[$q]['name']=="To")
-				htmlentities($headers[$q]['value']);
-
-				if($headers[$q]['name']=="Bcc")
-				print $headers[$q]['value'];		
-			
-				if($headers[$q]['name']=="Cc")
-				print $headers[$q]['value'];
-
-				if($headers[$q]['name']=="Date")
-				print $headers[$q]['value'].'<br/>';			
-			}
-		}
-	   }
-
-*/
   echo <<<END
-    
+   
     <a class='logout' href='?logout'>Logout</a>
 END;
 }
 ?>
- 
-  </div>
-</div>
