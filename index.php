@@ -7,8 +7,8 @@ require_once realpath(dirname(__FILE__) . '/../src/Google/autoload.php');
 //require_once 'Google/Client.php';
 //require_once 'Google/Service/Gmail.php'
 
- $client_id = '447034989084-2p3n3f104lmoljfsv41ra3inv014gave.apps.googleusercontent.com';
- $client_secret = 'D9-xvhsqhKjEbW9J6rVBLOwZ';
+ $client_id = '   ';
+ $client_secret = '    ';
  $redirect_uri = 'http://localhost/gmaila/examples/new.php';
  $scope = 'https://www.googleapis.com/auth/gmail.readonly';
 
